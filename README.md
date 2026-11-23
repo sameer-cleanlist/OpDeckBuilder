@@ -9,7 +9,7 @@ A modern, fast, dark-themed deck builder for the **One Piece Trading Card Game**
 ## Features
 
 ### Deck building
-- **All 4,000+ cards** across every set (OP01 → OP15, EB01–EB04, ST01–ST29, PRB01–PRB02, plus promos)
+- **All 5,000+ cards** across every set (OP01 → OP18, EB01–EB05, ST01–ST36, PRB01–PRB02, plus promos)
 - **Smart filters** — color, type, rarity, counter value, cost, plus keyword filters for Rush, Blocker, Searcher, Banish, On KO, and the genuinely useful **Removal / Anti-Removal** filters
 - **Live search** by card name, ID, family, or ability text
 - **OPTCG rule enforcement** — 1 leader, max 4 copies per card, color-matching to leader, 51-card cap
@@ -101,7 +101,7 @@ python scripts/localize_images.py
 ```
 OpDeckBuilder/
 ├── public/
-│   ├── images/cards/        # 4341 WebP card images (committed to repo)
+│   ├── images/cards/        # 5044 WebP card images (committed to repo)
 │   └── logo.png, favicon, fonts
 ├── raw_data/                # Per-set scraped JSON (one file per booster/starter)
 ├── scripts/                 # Python data pipeline (scrape, sync, download, localize)

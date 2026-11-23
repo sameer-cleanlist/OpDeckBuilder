@@ -244,7 +244,7 @@ function handleBackspace(e: KeyboardEvent) {
         </button>
         <div v-if="openFacet === 'sort'" ref="popEl" :style="popStyle" class="pop">
           <button :class="['opt', { on: cardStore.costSortDirection === '' }]"
-            @click="cardStore.costSortDirection = ''">Default</button>
+            @click="cardStore.costSortDirection = ''">Newest set first</button>
           <button :class="['opt', { on: cardStore.costSortDirection === 'asc' }]"
             @click="cardStore.costSortDirection = 'asc'">Cost: low to high</button>
           <button :class="['opt', { on: cardStore.costSortDirection === 'desc' }]"

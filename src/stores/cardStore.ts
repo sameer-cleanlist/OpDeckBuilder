@@ -4,7 +4,34 @@ import type { Card } from '../types/Card'
 import allCardsData from '../data/cards.json'
 import { getVariantsCached, prefetchVariants } from '../utils/pricing'
 
-/** The full card list, deliberately NOT reactive.
+/** Products oldest → newest, by English release. Sets the pool's order.
+ *
+ *  cards.json is in the order sets were scraped, not released. New sets land at
+ *  the END, so a search for "oden" put ST32's Oden 33rd of 33, under every
+ *  older Oden and every card that merely mentions him. The pool lists the
+ *  newest product first instead.
+ *
+ *  Order within a product line (OP, ST, EB, PRB) is exact; the interleaving
+ *  between lines is approximate. A set missing from this list ranks NEWEST, so
+ *  adding a set without updating the list can't bury it — but do add it here. */
+const RELEASE_ORDER = [
+  'ST01', 'ST02', 'ST03', 'ST04', 'OP01', 'ST05', 'OP02', 'ST06', 'ST07', 'ST08',
+  'OP03', 'ST09', 'ST10', 'OP04', 'ST11', 'ST12', 'OP05', 'ST13', 'OP06', 'ST14',
+  'EB01', 'OP07', 'ST15', 'ST16', 'ST17', 'ST18', 'ST19', 'ST20', 'OP08', 'PRB01',
+  'ST21', 'OP09', 'ST22', 'OP10', 'EB02', 'OP11', 'ST23', 'ST24', 'ST25', 'ST26',
+  'ST27', 'ST28', 'OP12', 'ST29', 'PRB02', 'OP13', 'EB03', 'OP14', 'EB04', 'OP15',
+  'OP16', 'ST30', 'OP17', 'ST31', 'ST32', 'ST33', 'ST34', 'ST35', 'ST36', 'EB05',
+  'OP18',
+]
+const RELEASE_RANK: ReadonlyMap<string, number> = new Map(RELEASE_ORDER.map((s, i) => [s, i]))
+
+/** Higher = newer. Promos (P) and GC01 span every era, so they sit at the bottom. */
+function releaseRank(set: string): number {
+  if (set === 'P' || set === 'GC01') return -1
+  return RELEASE_RANK.get(set) ?? RELEASE_ORDER.length
+}
+
+/** The full card list, deliberately NOT reactive, newest product first.
  *
  *  Card data is immutable after load, but living inside Pinia's `state()` meant
  *  Vue deep-proxied all 4789 objects. `filteredCards` reads up to 8 properties
@@ -13,8 +40,13 @@ import { getVariantsCached, prefetchVariants } from '../utils/pricing'
  *  (1.96ms vs 0.20ms per recompute) for reactivity we never use.
  *
  *  markRaw tells Vue to hand back the raw array untouched, so `cardStore.allCards`
- *  keeps working for consumers while the proxy overhead disappears. */
-const ALL_CARDS = markRaw(allCardsData as Card[])
+ *  keeps working for consumers while the proxy overhead disappears.
+ *
+ *  Sorted once here rather than per filter pass. The sort is stable, so cards
+ *  within a product keep their card-list order. */
+const ALL_CARDS = markRaw(
+  (allCardsData as Card[]).slice().sort((a, b) => releaseRank(b.set) - releaseRank(a.set))
+)
 
 /** id -> Card, so deck load / save / import stop doing O(n) scans of 4789 cards.
  *  loadDeck alone was 51 linear scans (~4ms) per deck. */
@@ -101,7 +133,7 @@ const ROTATED_SETS = new Set([
  *  so the ID prefix alone would wrongly mark them rotated. A card printed in a
  *  current starter deck is Standard-legal. Add new post-rotation products here. */
 const POST_ROTATION_SETS = new Set([
-  'ST31', 'ST32', 'ST33', 'ST34', 'ST35', 'ST36',
+  'ST31', 'ST32', 'ST33', 'ST34', 'ST35', 'ST36', 'EB05', 'OP18',
 ])
 
 /** Returns the set prefix from a card ID (everything before the first dash). */
@@ -117,16 +149,25 @@ function isRotated(card: Card): boolean {
   return ROTATED_SETS.has(cardSet(card.id))
 }
 
+/** The card's product code in both spellings, "ST31 ST-31", for search.
+ *  Bandai prints the dashed form on the box and card list ("[ST-31]"), but IDs
+ *  never carry it, so without it "ST-31" found nothing. Searching "ST31-" isn't
+ *  a substitute either: it only matches the deck's 5 new IDs, not the 10
+ *  reprints that ship under their original IDs. */
+export function setSearchTerms(card: Card): string {
+  return `${card.set} ${card.set.replace(/^([A-Z]+)(\d+)$/, '$1-$2')}`
+}
+
 /** Lazily-built lowercase search index for fast text matching.
  *  Maps card.id → "name id set attribute family ability" lowercased and concatenated.
  *  Built once on first access since allCards never changes after load.
  *  Includes attribute so a free-text search for "wisdom" or "slash" works, and
- *  set so "op17" pulls up a whole product. */
+ *  set so "op17" or "st-31" pulls up a whole product. */
 const SEARCH_INDEX_CACHE = new Map<string, string>()
 function searchIndexFor(card: Card): string {
   let cached = SEARCH_INDEX_CACHE.get(card.id)
   if (cached === undefined) {
-    cached = `${card.name} ${card.id} ${card.set} ${card.attribute} ${card.family} ${card.ability}`.toLowerCase()
+    cached = `${card.name} ${card.id} ${setSearchTerms(card)} ${card.attribute} ${card.family} ${card.ability}`.toLowerCase()
     SEARCH_INDEX_CACHE.set(card.id, cached)
   }
   return cached
@@ -258,7 +299,7 @@ export const useCardStore = defineStore('cards', {
         'anti-removal': /cannot be removed from the field|would (be )?(k\.?o.?ed?|leave|removed).{0,120}instead/,
       } : {}
 
-      const cards = state.allCards.filter(card => {
+      let cards = state.allCards.filter(card => {
         // Color
         if (hasColors) {
           const cardColors = colorsFor(card)
@@ -289,6 +330,21 @@ export const useCardStore = defineStore('cards', {
         }
         return true
       })
+
+      // Cards NAMED in the search come before cards that only mention it in
+      // their ability or type line, so "oden" lists every Kouzuki Oden ahead of
+      // the Yamato and Kin'emon cards that reference him. Each tier keeps the
+      // newest-first order.
+      if (lowerTerms) {
+        const named: Card[] = []
+        const mentioned: Card[] = []
+        for (const card of cards) {
+          const name = card.name.toLowerCase()
+          if (lowerTerms.some(t => name.includes(t))) named.push(card)
+          else mentioned.push(card)
+        }
+        cards = named.concat(mentioned)
+      }
 
       // Sort (only allocates when sorting is active)
       if (sortDir === 'asc') return cards.sort((a, b) => a.cost - b.cost)

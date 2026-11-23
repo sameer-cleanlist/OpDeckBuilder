@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useCardStore } from '../stores/cardStore'
+import { useCardStore, setSearchTerms } from '../stores/cardStore'
 import type { Card } from '../types/Card'
 
 const emit = defineEmits<{ (e: 'back'): void }>()
@@ -66,15 +66,16 @@ const printPages = computed(() => {
   return pages
 })
 
-/** Search results — multi-token search across name + id + family.
+/** Search results — multi-token search across name + id + set + family.
  *  Each whitespace-separated token must match somewhere on the card,
- *  so "luffy op15", "op15 luffy", and "monkey luffy" all work. */
+ *  so "luffy op15", "op15 luffy", and "monkey luffy" all work. Set matters
+ *  for reprints: "st31" finds ST31's reprinted Nami (OP01-016_p9) too. */
 const searchResults = computed(() => {
   const tokens = searchQuery.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
   if (tokens.length === 0) return []
   return cardStore.allCards
     .filter(c => {
-      const haystack = `${c.name} ${c.id} ${c.family}`.toLowerCase()
+      const haystack = `${c.name} ${c.id} ${setSearchTerms(c)} ${c.family}`.toLowerCase()
       return tokens.every(t => haystack.includes(t))
     })
     .slice(0, 30)
