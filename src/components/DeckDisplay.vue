@@ -175,7 +175,7 @@ const nonLeaderGroups = computed(() => {
       <div
         v-if="leader"
         class="card-stack leader-card"
-        @mouseenter="cardStore.selectCard(leaderDisplay ?? leader)"
+        @mouseenter="cardStore.hoverCard(leaderDisplay ?? leader)"
         @contextmenu.prevent="$event.shiftKey ? cardStore.removeAllFromDeck(leader.id) : cardStore.removeFromDeck(leader.id)"
       >
         <div class="stack-wrapper">
@@ -198,7 +198,7 @@ const nonLeaderGroups = computed(() => {
         class="card-stack"
         :style="{ width: `calc(var(--deck-card-w) + ${entry.count - 1} * var(--deck-h-offset))` }"
         @click="cardStore.addToDeck(entry.card)"
-        @mouseenter="cardStore.selectCard(entry.display)"
+        @mouseenter="cardStore.hoverCard(entry.display)"
         @contextmenu.prevent="$event.shiftKey ? cardStore.removeAllFromDeck(entry.card.id) : cardStore.removeFromDeck(entry.card.id)"
       >
         <button

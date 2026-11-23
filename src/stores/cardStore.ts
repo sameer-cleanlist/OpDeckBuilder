@@ -256,6 +256,7 @@ export const useCardStore = defineStore('cards', {
     deckCardScale: 1.0,                  // 0.6–1.4 multiplier for desktop deck card sizes
     costSortDirection: '' as '' | 'asc' | 'desc',  // '' = no sort, 'asc' = low→high, 'desc' = high→low
     selectedCard: null as Card | null,  // card shown in preview panel
+    hoverPreview: true,                 // desktop: show the preview panel on hover
     deck: [] as Card[],                 // cards in the user's deck (duplicates = multiple copies)
     deckName: '',                        // name for saving/loading decks
     blingLevel: 0 as BlingLevel,         // 0 Bling / 1 Blingy / 2 Blingest — display only
@@ -590,6 +591,19 @@ export const useCardStore = defineStore('cards', {
       this.selectedCard = card
     },
 
+    /** Desktop hover: preview the card unless the user turned hover previews off.
+     *  Mobile taps call selectCard directly, so the toggle never affects them. */
+    hoverCard(card: Card) {
+      if (this.hoverPreview) this.selectCard(card)
+    },
+
+    /** Turn the desktop hover preview on or off. Persists to localStorage. */
+    toggleHoverPreview() {
+      this.hoverPreview = !this.hoverPreview
+      this.clearSelectedCard()
+      try { localStorage.setItem('op-hover-preview', this.hoverPreview ? '1' : '0') } catch {}
+    },
+
     /** Dismiss the hover preview immediately. */
     clearSelectedCard() {
       cancelPreviewClear()
@@ -803,6 +817,9 @@ export const useCardStore = defineStore('cards', {
         if (savedCurrency === 'USD' || savedCurrency === 'CAD' || savedCurrency === 'GBP') {
           this.currency = savedCurrency
         }
+      } catch {}
+      try {
+        if (localStorage.getItem('op-hover-preview') === '0') this.hoverPreview = false
       } catch {}
       // Restore deck card scale preference
       try {

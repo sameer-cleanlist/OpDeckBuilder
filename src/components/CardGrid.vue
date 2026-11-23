@@ -39,7 +39,8 @@ const OVERSCAN_ROWS = 2
 const MOBILE_TILE_CHROME = 62
 
 /** Hover-preview debounce. Sweeping a mouse across a row used to fire one
- *  full preview re-render (and a 124KB image swap) per tile passed over. */
+ *  full preview re-render (and a 124KB image swap) per tile passed over.
+ *  Must stay shorter than the store's 160ms dismissal grace (see onPreview). */
 const HOVER_DELAY_MS = 80
 
 const rootEl = ref<HTMLElement | null>(null)
@@ -257,15 +258,17 @@ function onPreview(card: Card) {
     clearTimeout(hoverTimer)
     hoverTimer = undefined
   }
-  if (cardStore.selectedCard?.id === card.id) return
   // Mobile preview comes from a deliberate tap, so it should feel instant.
   if (isMobile.value) {
     cardStore.selectCard(card)
     return
   }
+  // Even the card already shown goes through here: re-selecting it cancels the
+  // dismissal armed by leaving the deck, the pool or the panel, which otherwise
+  // hid the preview while the pointer sat on that same card.
   hoverTimer = setTimeout(() => {
     hoverTimer = undefined
-    cardStore.selectCard(card)
+    cardStore.hoverCard(card)
   }, HOVER_DELAY_MS)
 }
 
